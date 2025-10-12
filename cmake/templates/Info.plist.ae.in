@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>English</string>
+
+    <key>CFBundleExecutable</key>
+    <string>@PLUGIN_NAME@</string>
+
+    <key>CFBundleIdentifier</key>
+    <string>@PLUGIN_BUNDLE_IDENTIFIER_AE@</string>
+
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+
+    <key>CFBundleName</key>
+    <string>@PLUGIN_NAME@</string>
+
+    <key>CFBundlePackageType</key>
+    <string>eFKT</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>@PLUGIN_VERSION@</string>
+
+    <key>CFBundleVersion</key>
+    <string>@PLUGIN_VERSION_BUILD@</string>
+
+    <key>CFBundleSignature</key>
+    <string>????</string>
+
+    <key>LSMinimumSystemVersion</key>
+    <string>10.14</string>
+
+    <key>NSHighResolutionCapable</key>
+    <true/>
+
+    <key>NSHumanReadableCopyright</key>
+    <string>© @PLUGIN_VENDOR@. All rights reserved.</string>
+
+    <key>AEMatchName</key>
+    <string>@PLUGIN_AE_MATCH_NAME@</string>
+
+    <key>AECategory</key>
+    <string>@PLUGIN_CATEGORY@</string>
+</dict>
+</plist>

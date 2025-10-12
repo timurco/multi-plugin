@@ -1,0 +1,21 @@
+{
+    "name": "@PLUGIN_NAME@",
+    "version": {
+        "major": @PLUGIN_VERSION_MAJOR@,
+        "minor": @PLUGIN_VERSION_MINOR@,
+        "patch": @PLUGIN_VERSION_PATCH@,
+        "stage": @PLUGIN_VERSION_STAGE@,
+        "build": @PLUGIN_VERSION_BUILD@
+    },
+    "vendor": "@PLUGIN_VENDOR@",
+    "category": "@PLUGIN_CATEGORY@",
+    "description": "@PLUGIN_DESCRIPTION@",
+    "ae_match_name": "@PLUGIN_AE_MATCH_NAME@",
+    "support_url": "@PLUGIN_SUPPORT_URL@",
+    "ae_info_flags": @PLUGIN_AE_INFO_FLAGS@,
+    "ae_out_flags": @PLUGIN_AE_OUT_FLAGS@,
+    "ae_out_flags2": @PLUGIN_AE_OUT_FLAGS2@,
+    "ae_reserved_info": @PLUGIN_AE_RESERVED_INFO@,
+    "entry_point": "EffectMain",
+    "entry_point_v2": "PluginDataEntryFunction2"
+}

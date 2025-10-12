@@ -1,0 +1,67 @@
+# Build artifacts
+/build/
+/out/
+/dist/
+/**/*.o
+/**/*.obj
+/**/*.lo
+/**/*.idb
+/**/*.pdb
+/**/*.ilk
+/**/*.dll
+/**/*.dylib
+/**/*.so
+/**/*.a
+/**/*.lib
+/**/*.exe
+/**/*.exp
+
+# CMake and IDE cache files
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+*.cmake
+.cmake/api/
+.cache/
+
+# Generated resources
+**/generated/
+**/*PiPL.r
+**/*.rsrc
+**/*.rc
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+
+# Tooling metadata
+.vs/
+.idea/
+.vscode/
+.clangd/
+.cquery_cached_index/
+
+# Package managers
+node_modules/
+package-lock.json
+yarn.lock
+
+# Local configuration
+settings.local.json
+.env
