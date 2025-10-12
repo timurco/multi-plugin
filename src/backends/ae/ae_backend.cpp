@@ -76,6 +76,10 @@ static PF_Err SequenceSetup(PF_InData* in_data, PF_OutData* out_data,
                             PF_ParamDef* params[], PF_LayerDef* output);
 static PF_Err SequenceSetdown(PF_InData* in_data, PF_OutData* out_data,
                               PF_ParamDef* params[], PF_LayerDef* output);
+static PF_Err PreRender(PF_InData* in_data, PF_OutData* out_data,
+                        PF_PreRenderExtra* extra);
+static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
+                          PF_SmartRenderExtra* extra);
 
 // Helpers to get pixel format from world (simplified from ae_common.hpp)
 static PF_Err GetPixelFormatFromWorld(PF_EffectWorld* world, PF_InData* in_data,
@@ -368,6 +372,79 @@ static PF_Err Render(PF_InData* in_data, PF_OutData* out_data,
     return err;
 }
 
+// Smart PreRender - establish bounds and cache data
+static PF_Err PreRender(PF_InData* in_data, PF_OutData* out_data,
+                        PF_PreRenderExtra* extra)
+{
+    PF_Err err = PF_Err_NONE;
+
+    PF_CheckoutResult in_result{};
+    PF_RenderRequest req = extra->input->output_request;
+    req.preserve_rgb_of_zero_alpha = true;
+    req.channel_mask = PF_ChannelMask_ARGB;
+
+    extra->output->flags |= PF_RenderOutputFlag_RETURNS_EXTRA_PIXELS;
+
+    ERR(extra->cb->checkout_layer(in_data->effect_ref,
+                                  INPUT_LAYER,
+                                  INPUT_LAYER,
+                                  &req,
+                                  in_data->current_time,
+                                  in_data->time_step,
+                                  in_data->time_scale,
+                                  &in_result));
+
+    if (!err) {
+        extra->output->result_rect = in_result.result_rect;
+        extra->output->max_result_rect = in_result.max_result_rect;
+    }
+
+    return err;
+}
+
+// Smart Render - process using checked-out buffers
+static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
+                          PF_SmartRenderExtra* extra)
+{
+    PF_Err err = PF_Err_NONE;
+    PF_Err err2 = PF_Err_NONE;
+
+    if (!g_plugin) {
+        return PF_Err_INTERNAL_STRUCT_DAMAGED;
+    }
+
+    PF_EffectWorld* input_world = nullptr;
+    PF_EffectWorld* output_world = nullptr;
+
+    ERR(extra->cb->checkout_layer_pixels(in_data->effect_ref,
+                                         INPUT_LAYER,
+                                         &input_world));
+    ERR(extra->cb->checkout_output(in_data->effect_ref,
+                                   &output_world));
+
+    if (!err && input_world && output_world) {
+        ERR(PF_COPY(reinterpret_cast<PF_LayerDef*>(input_world),
+                    reinterpret_cast<PF_LayerDef*>(output_world),
+                    nullptr,
+                    nullptr));
+
+        if (!err) {
+            mp::AERenderContext context(in_data,
+                                        out_data,
+                                        reinterpret_cast<PF_LayerDef*>(input_world),
+                                        reinterpret_cast<PF_LayerDef*>(output_world));
+            g_plugin->onRender(context);
+        }
+    }
+
+    err2 = extra->cb->checkin_layer_pixels(in_data->effect_ref, INPUT_LAYER);
+    if (!err && err2) {
+        err = err2;
+    }
+
+    return err;
+}
+
 // Main entry point
 extern "C"
 #ifdef _WIN32
@@ -406,6 +483,16 @@ PF_Err EffectMain(PF_Cmd cmd, PF_InData* in_data, PF_OutData* out_data,
 
             case PF_Cmd_RENDER:
                 err = Render(in_data, out_data, params, output);
+                break;
+
+            case PF_Cmd_SMART_PRE_RENDER:
+                err = PreRender(in_data, out_data,
+                                reinterpret_cast<PF_PreRenderExtra*>(extra));
+                break;
+
+            case PF_Cmd_SMART_RENDER:
+                err = SmartRender(in_data, out_data,
+                                  reinterpret_cast<PF_SmartRenderExtra*>(extra));
                 break;
 
             default:

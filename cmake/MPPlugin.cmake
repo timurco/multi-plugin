@@ -383,6 +383,13 @@ function(_mp_add_ae_plugin)
         # Generate and compile .r file for macOS
         _mp_generate_pipl_resource(${TARGET_NAME})
 
+        # Installation path for AE plugin bundles
+        set(_mp_install_dir "/Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore/${PLUGIN_CATEGORY}")
+        install(TARGETS ${TARGET_NAME}
+            BUNDLE DESTINATION "${_mp_install_dir}"
+            LIBRARY DESTINATION "${_mp_install_dir}"
+        )
+
     elseif(WIN32)
         # Windows DLL
         set_target_properties(${TARGET_NAME} PROPERTIES
