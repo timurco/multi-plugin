@@ -467,10 +467,24 @@ function(_mp_add_ofx_plugin)
             BUNDLE_EXTENSION "ofx.bundle"
             OUTPUT_NAME "${PLUGIN_NAME}"
             MACOSX_BUNDLE_INFO_PLIST "${_mp_ofx_info_plist}"
+            # Ensure the binary is not executable (matches working OFX plugins)
+            FRAMEWORK FALSE
+        )
+
+        # Rename binary to add .ofx extension and remove executable bit
+        # CMake's SUFFIX property doesn't work for bundles, so we rename post-build
+        add_custom_command(
+            TARGET ${TARGET_NAME} POST_BUILD
+            COMMAND mv "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/MacOS/${PLUGIN_NAME}"
+                       "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/MacOS/${PLUGIN_NAME}.ofx"
+            COMMAND chmod -x "$<TARGET_BUNDLE_DIR:${TARGET_NAME}>/Contents/MacOS/${PLUGIN_NAME}.ofx"
+            COMMENT "Renaming OFX binary and removing executable flag"
         )
 
         # Installation path for OFX bundles
-        set(_mp_ofx_install_dir "/Library/OFX/Plugins/${PLUGIN_CATEGORY}")
+        # NOTE: Install directly to root OFX directory, not in category subfolder
+        # DaVinci Resolve may not scan subdirectories
+        set(_mp_ofx_install_dir "/Library/OFX/Plugins")
         install(TARGETS ${TARGET_NAME}
             BUNDLE DESTINATION "${_mp_ofx_install_dir}"
             LIBRARY DESTINATION "${_mp_ofx_install_dir}"
@@ -483,7 +497,8 @@ function(_mp_add_ofx_plugin)
             OUTPUT_NAME "${PLUGIN_NAME}"
         )
 
-        set(_mp_ofx_install_dir "C:/Program Files/Common Files/OFX/Plugins/${PLUGIN_CATEGORY}")
+        # NOTE: Install directly to root OFX directory, not in category subfolder
+        set(_mp_ofx_install_dir "C:/Program Files/Common Files/OFX/Plugins")
         install(TARGETS ${TARGET_NAME}
             RUNTIME DESTINATION "${_mp_ofx_install_dir}"
             LIBRARY DESTINATION "${_mp_ofx_install_dir}"

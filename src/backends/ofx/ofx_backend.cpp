@@ -239,6 +239,9 @@ static OfxStatus describeAction(OfxImageEffectHandle effect)
 
     // Set plugin properties
     gPropertySuite->propSetString(props, kOfxPropLabel, 0, info.name);
+    gPropertySuite->propSetString(props, kOfxPropShortLabel, 0, info.name);
+    gPropertySuite->propSetString(props, kOfxPropLongLabel, 0, info.description);
+    gPropertySuite->propSetString(props, kOfxPropPluginDescription, 0, info.description);
     gPropertySuite->propSetString(props, kOfxImageEffectPluginPropGrouping, 0,
                                   info.category);
 
@@ -359,8 +362,8 @@ static OfxPlugin pluginStruct = {
     kOfxImageEffectPluginApi,           // pluginApi
     1,                                  // apiVersion
     OFX_IDENTIFIER,                     // plugin unique ID from CMake
-    1,                                  // plugin major version
-    0,                                  // plugin minor version
+    mp::getPluginVersion().major,      // plugin major version
+    mp::getPluginVersion().minor,      // plugin minor version
     setHost,                            // setHost function
     pluginMain                          // mainEntry function
 };
@@ -385,6 +388,11 @@ OfxPlugin* OfxGetPlugin(int index)
         return &pluginStruct;
     }
     return nullptr;
+}
+
+const char* OfxGetAPIVersion(void)
+{
+    return kOfxImageEffectPluginApi;
 }
 
 } // extern "C"

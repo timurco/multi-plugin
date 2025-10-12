@@ -6,7 +6,7 @@
     <string>English</string>
 
     <key>CFBundleExecutable</key>
-    <string>@PLUGIN_NAME@</string>
+    <string>@PLUGIN_NAME@.ofx</string>
 
     <key>CFBundleIdentifier</key>
     <string>@PLUGIN_BUNDLE_IDENTIFIER_OFX@</string>
