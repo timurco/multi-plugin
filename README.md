@@ -101,7 +101,9 @@ MultiPlugin/
 │       └── ofx/          # OpenFX backend
 ├── cmake/                 # CMake modules
 ├── tools/                # Build tools
-│   └── generate_pipl.py  # .r file generator
+│   ├── generate_pipl.py  # .r file generator
+│   └── debug/            # Debugging helpers
+│       └── resolve_simple.lldb
 └── examples/             # Example plugins
     └── invert/          # Simple inversion effect
 ```
@@ -148,6 +150,64 @@ constexpr auto kParams = up::makeSet<MyParams>(
     up::intSlider(&MyParams::seed, "Seed", 0, 1000)
 );
 ```
+
+## Build & Install Targets
+
+### Makefile shortcuts
+
+At the repo root a convenience `Makefile` wraps the typical workflow. Edit the default `AE_SDK_PATH` / `OFX_PATH` inside it (or override on the command line).
+
+```bash
+# One-shot build with optimizations + debug symbols
+make relwithdebinfo
+
+# Strict release build
+make release
+
+# Debug build
+make debug
+
+# Install bundles into the host plug-in folders
+make install
+
+# Remove build tree
+make distclean
+```
+
+All targets accept overrides, e.g. `make build CONFIG=Release AE_SDK_PATH=/custom/ae OFX_PATH=/custom/ofx`.
+
+### Raw CMake (if you prefer)
+
+- Configure once with your SDK paths:
+  ```bash
+  cmake -S . -B build \
+    -DAE_SDK_PATH=/Users/you/adobe-ae-sdk-2025 \
+    -DOFX_PATH=/Users/you/openfx \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  ```
+- Rebuild after changes:
+  ```bash
+  cmake --build build -j8
+  ```
+- Install compiled plugins:
+  ```bash
+  cmake --install build
+  ```
+  AE bundles copy to `/Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore/<PLUGIN_CATEGORY>`.
+  OFX bundles copy to `/Library/OFX/Plugins/<PLUGIN_CATEGORY>`.
+  On Windows the destinations are `C:\Program Files\Adobe\Common Plug-ins\7.0\MediaCore\<PLUGIN_CATEGORY>` and `C:\Program Files\Common Files\OFX\Plugins\<PLUGIN_CATEGORY>`.
+  To stage under your home directory, append `--prefix ~` to the install command.
+
+## Debugging OFX in Resolve
+
+A minimal LLDB script lives at `tools/debug/resolve_simple.lldb`. Use it to launch Resolve with anti-debug bypass and useful breakpoints:
+
+```bash
+lldb -s tools/debug/resolve_simple.lldb -- \
+  "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/MacOS/Resolve"
+```
+
+When Resolve crashes, LLDB automatically prints a backtrace.
 
 ## License
 

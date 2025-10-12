@@ -22,7 +22,8 @@ CMakeFiles/
 cmake-build-*/
 CMakeScripts/
 cmake_install.cmake
-Makefile
+**/Makefile
+!/Makefile
 *.cmake
 .cmake/api/
 .cache/

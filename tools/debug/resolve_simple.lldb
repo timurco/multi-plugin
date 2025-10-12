@@ -1,0 +1,16 @@
+# Simple debug script focusing only on plugin loading
+target create "/Applications/DaVinci Resolve/DaVinci Resolve.app/Contents/MacOS/Resolve"
+
+# Anti-debug bypass
+breakpoint set --name ptrace
+breakpoint command add 1
+register write x0 0
+continue
+DONE
+
+# Only essential breakpoints - no audio/system ones
+breakpoint set --name abort
+breakpoint set --name __assert_rtn
+
+# Stop hook for crashes only
+target stop-hook add --one-liner "bt"

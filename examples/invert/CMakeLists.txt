@@ -1,7 +1,7 @@
 # Invert plugin example
 
 mp_add_plugin(
-    NAME Invert
+    NAME MultiPlugin
     SOURCES invert.cpp
     VENDOR "Towards Inner Momentum"
     CATEGORY "TiM"

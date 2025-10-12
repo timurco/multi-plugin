@@ -399,6 +399,13 @@ function(_mp_add_ae_plugin)
 
         # Generate and add RC file for Windows
         _mp_generate_windows_resource(${TARGET_NAME})
+
+        # Installation path for AE plugin DLLs
+        set(_mp_install_dir "C:/Program Files/Adobe/Common Plug-ins/7.0/MediaCore/${PLUGIN_CATEGORY}")
+        install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION "${_mp_install_dir}"
+            LIBRARY DESTINATION "${_mp_install_dir}"
+        )
     endif()
 
     message(STATUS "  -> AE plugin: ${TARGET_NAME}")
@@ -462,11 +469,24 @@ function(_mp_add_ofx_plugin)
             MACOSX_BUNDLE_INFO_PLIST "${_mp_ofx_info_plist}"
         )
 
+        # Installation path for OFX bundles
+        set(_mp_ofx_install_dir "/Library/OFX/Plugins/${PLUGIN_CATEGORY}")
+        install(TARGETS ${TARGET_NAME}
+            BUNDLE DESTINATION "${_mp_ofx_install_dir}"
+            LIBRARY DESTINATION "${_mp_ofx_install_dir}"
+        )
+
     elseif(WIN32)
         # Windows DLL for OFX
         set_target_properties(${TARGET_NAME} PROPERTIES
             SUFFIX ".ofx"
             OUTPUT_NAME "${PLUGIN_NAME}"
+        )
+
+        set(_mp_ofx_install_dir "C:/Program Files/Common Files/OFX/Plugins/${PLUGIN_CATEGORY}")
+        install(TARGETS ${TARGET_NAME}
+            RUNTIME DESTINATION "${_mp_ofx_install_dir}"
+            LIBRARY DESTINATION "${_mp_ofx_install_dir}"
         )
 
     else()
@@ -475,6 +495,9 @@ function(_mp_add_ofx_plugin)
             SUFFIX ".ofx.bundle"
             PREFIX ""
             OUTPUT_NAME "${PLUGIN_NAME}"
+        )
+        install(TARGETS ${TARGET_NAME}
+            LIBRARY DESTINATION "usr/OFX/Plugins/${PLUGIN_VENDOR_SLUG}"
         )
     endif()
 
