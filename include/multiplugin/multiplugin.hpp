@@ -64,8 +64,16 @@ public:
     // Rendering
     virtual void onRender(RenderContext& ctx) = 0;
 
-    // Metadata
-    virtual PluginInfo getInfo() const = 0;
+    // Metadata - default implementation uses CMake-defined macros
+    virtual PluginInfo getInfo() const {
+        return {
+            .name = PLUGIN_NAME,
+            .category = PLUGIN_CATEGORY,
+            .description = PLUGIN_DESCRIPTION,
+            .vendor = PLUGIN_VENDOR,
+            .support_url = PLUGIN_SUPPORT_URL
+        };
+    }
 
 protected:
     PluginBase(const PluginBase&) = delete;
@@ -126,6 +134,48 @@ public:
     template<typename PixelType, typename Func>
     bool process(Func&& pixelFunc) {
         return processParallel<PixelType, PixelType>(std::forward<Func>(pixelFunc));
+    }
+
+    /**
+     * @brief Automatically dispatch to correct pixel type based on format
+     *
+     * Eliminates the need for switch statements in plugin code.
+     * The lambda will be called with the correct pixel type.
+     *
+     * @param pixelFunc Lambda taking (int x, int y, PixelT* in, PixelT* out)
+     * @return true on success
+     */
+    template<typename Func>
+    bool processAuto(Func&& pixelFunc) {
+        auto format = getInput().getFormat();
+
+        switch (format) {
+            // After Effects formats
+            case PixelFormat::ARGB_8:
+                return process<Pixel8>(std::forward<Func>(pixelFunc));
+
+            case PixelFormat::ARGB_16:
+                return process<Pixel16>(std::forward<Func>(pixelFunc));
+
+            case PixelFormat::ARGB_32F:
+                return process<Pixel32>(std::forward<Func>(pixelFunc));
+
+            // OpenFX formats
+            case PixelFormat::RGBA_8:
+                return process<OFXPixel8>(std::forward<Func>(pixelFunc));
+
+            case PixelFormat::RGBA_16:
+                return process<OFXPixel16>(std::forward<Func>(pixelFunc));
+
+            case PixelFormat::RGBA_16F:
+                return process<OFXPixel16>(std::forward<Func>(pixelFunc));
+
+            case PixelFormat::RGBA_32F:
+                return process<OFXPixel32F>(std::forward<Func>(pixelFunc));
+
+            default:
+                return false;
+        }
     }
 };
 

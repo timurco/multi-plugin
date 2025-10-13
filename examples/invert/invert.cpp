@@ -65,61 +65,10 @@ public:
 
         float mix_factor = params.mix / 100.0f;
 
-        // Get pixel format from input
-        auto format = ctx.getInput().getFormat();
+        // Use processAuto to automatically dispatch to correct pixel type
+        ctx.processAuto([mix_factor](int x, int y, auto* in, auto* out) {
+            using PixelT = std::remove_pointer_t<decltype(in)>;
 
-        // Process based on bit depth
-        switch (format) {
-            // After Effects formats
-            case mp::PixelFormat::ARGB_8:
-                processPixels<mp::Pixel8>(ctx, mix_factor);
-                break;
-
-            case mp::PixelFormat::ARGB_16:
-                processPixels<mp::Pixel16>(ctx, mix_factor);
-                break;
-
-            case mp::PixelFormat::ARGB_32F:
-                processPixels<mp::Pixel32>(ctx, mix_factor);
-                break;
-
-            // OpenFX formats
-            case mp::PixelFormat::RGBA_8:
-                processPixels<mp::OFXPixel8>(ctx, mix_factor);
-                break;
-
-            case mp::PixelFormat::RGBA_16:
-            case mp::PixelFormat::RGBA_16F: // treat half float as 16-bit for now
-                processPixels<mp::OFXPixel16>(ctx, mix_factor);
-                break;
-
-            case mp::PixelFormat::RGBA_32F:
-                processPixels<mp::OFXPixel32F>(ctx, mix_factor);
-                break;
-        }
-    }
-
-    /**
-     * @brief Plugin metadata
-     */
-    mp::PluginInfo getInfo() const override {
-        return {
-            .name = PLUGIN_NAME,
-            .category = PLUGIN_CATEGORY,
-            .description = PLUGIN_DESCRIPTION,
-            .vendor = PLUGIN_VENDOR,
-            .support_url = PLUGIN_SUPPORT_URL
-        };
-    }
-
-private:
-    /**
-     * @brief Process pixels with specific type
-     */
-    template<typename PixelT>
-    void processPixels(mp::RenderContext& ctx, float mix_factor) {
-        // Use parallel processing from the framework
-        ctx.process<PixelT>([mix_factor](int x, int y, PixelT* in, PixelT* out) {
             // Invert RGB channels
             float inv_r = PixelT::max_value - in->r;
             float inv_g = PixelT::max_value - in->g;
