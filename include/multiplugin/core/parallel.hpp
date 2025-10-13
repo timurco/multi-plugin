@@ -18,9 +18,9 @@ namespace mp {
 /**
  * @brief Parallel pixel processor using platform-specific threading
  *
- * On Windows: Uses parallel_for_each with execution policy
- * On macOS: Uses Grand Central Dispatch
- * On other platforms: Falls back to sequential iteration for now
+ * On Windows: Uses std::execution::par with parallel_for_each
+ * On macOS: Uses Grand Central Dispatch (dispatch_apply)
+ * On Linux: Uses std::thread pool with hardware_concurrency
  *
  * @tparam InPixel Source pixel type
  * @tparam OutPixel Destination pixel type
@@ -95,9 +95,23 @@ public:
             rowIter(static_cast<int>(y));
         });
         #else
-        // Fallback: sequential processing (can be replaced with std::thread pool later)
-        for (int y = 0; y < height; ++y) {
-            rowIter(y);
+        // Linux: std::thread pool
+        unsigned int numThreads = std::thread::hardware_concurrency();
+        if (numThreads == 0) numThreads = 4; // fallback
+
+        std::vector<std::thread> threads;
+        threads.reserve(numThreads);
+
+        for (unsigned int t = 0; t < numThreads; ++t) {
+            threads.emplace_back([&, t, numThreads]() {
+                for (int y = t; y < height; y += numThreads) {
+                    rowIter(y);
+                }
+            });
+        }
+
+        for (auto& thread : threads) {
+            thread.join();
         }
         #endif
 
@@ -156,8 +170,23 @@ public:
             tileProcessor(static_cast<int>(idx));
         });
         #else
-        for (int tileIndex = 0; tileIndex < numTiles; ++tileIndex) {
-            tileProcessor(tileIndex);
+        // Linux: std::thread pool
+        unsigned int numThreads = std::thread::hardware_concurrency();
+        if (numThreads == 0) numThreads = 4; // fallback
+
+        std::vector<std::thread> threads;
+        threads.reserve(numThreads);
+
+        for (unsigned int t = 0; t < numThreads; ++t) {
+            threads.emplace_back([&, t, numThreads]() {
+                for (int tile = t; tile < numTiles; tile += numThreads) {
+                    tileProcessor(tile);
+                }
+            });
+        }
+
+        for (auto& thread : threads) {
+            thread.join();
         }
         #endif
     }

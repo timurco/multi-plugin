@@ -183,6 +183,7 @@ public:
 
 // Macro for plugin registration
 #ifdef BUILD_FOR_AE
+    // AE creates new instance each time (managed by backend)
     #define MP_REGISTER_PLUGIN(PluginClass) \
         extern "C" mp::PluginBase* mp_create_plugin() { \
             return new PluginClass(); \
@@ -190,8 +191,17 @@ public:
 #endif
 
 #ifdef BUILD_FOR_OFX
+    // OFX uses singleton pattern (one instance per plugin binary)
     #define MP_REGISTER_PLUGIN(PluginClass) \
+        static PluginClass* g_plugin_instance = nullptr; \
         extern "C" mp::PluginBase* mp_create_plugin() { \
-            return new PluginClass(); \
+            if (!g_plugin_instance) { \
+                g_plugin_instance = new PluginClass(); \
+            } \
+            return g_plugin_instance; \
+        } \
+        extern "C" void mp_destroy_plugin() { \
+            delete g_plugin_instance; \
+            g_plugin_instance = nullptr; \
         }
 #endif

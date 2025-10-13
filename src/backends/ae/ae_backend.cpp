@@ -219,12 +219,9 @@ static PF_Err GlobalSetup(PF_InData* in_data, PF_OutData* out_data,
         (*pixelFormatSuite->ClearSupportedPixelFormats)(in_data->effect_ref);
 
         // Add ARGB formats only (no YUV)
-        (*pixelFormatSuite->AddSupportedPixelFormat)(in_data->effect_ref,
-            PrPixelFormat_ARGB_4444_8u);
-        (*pixelFormatSuite->AddSupportedPixelFormat)(in_data->effect_ref,
-            PrPixelFormat_ARGB_4444_16u);
-        (*pixelFormatSuite->AddSupportedPixelFormat)(in_data->effect_ref,
-            PrPixelFormat_ARGB_4444_32f);
+        (*pixelFormatSuite->AddSupportedPixelFormat)(in_data->effect_ref, PrPixelFormat_ARGB_4444_8u);
+        (*pixelFormatSuite->AddSupportedPixelFormat)(in_data->effect_ref, PrPixelFormat_ARGB_4444_16u);
+        (*pixelFormatSuite->AddSupportedPixelFormat)(in_data->effect_ref, PrPixelFormat_ARGB_4444_32f);
     }
 
     // Create plugin instance

@@ -18,6 +18,7 @@
 #include "multiplugin/core/logger.hpp"
 
 extern "C" mp::PluginBase* mp_create_plugin();
+extern "C" void mp_destroy_plugin();
 
 // Plugin instance data
 static mp::PluginBase* g_plugin = nullptr;
@@ -200,7 +201,7 @@ static OfxStatus unloadAction()
     std::lock_guard<std::mutex> lock(g_plugin_mutex);
     if (g_plugin) {
         g_plugin->onGlobalSetdown();
-        delete g_plugin;
+        mp_destroy_plugin();  // Properly destroys singleton and nulls the pointer
         g_plugin = nullptr;
     }
     return kOfxStatOK;
