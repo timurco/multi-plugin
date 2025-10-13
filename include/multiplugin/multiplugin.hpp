@@ -141,11 +141,7 @@ public:
 
 #ifdef BUILD_FOR_OFX
     #define MP_REGISTER_PLUGIN(PluginClass) \
-        static PluginClass* g_plugin_instance = nullptr; \
         extern "C" mp::PluginBase* mp_create_plugin() { \
-            if (!g_plugin_instance) { \
-                g_plugin_instance = new PluginClass(); \
-            } \
-            return g_plugin_instance; \
+            return new PluginClass(); \
         }
 #endif

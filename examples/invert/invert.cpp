@@ -104,11 +104,11 @@ public:
      */
     mp::PluginInfo getInfo() const override {
         return {
-            .name = "Invert",
-            .category = "Color Correction",
-            .description = "Inverts the colors of the input",
-            .vendor = "MultiPlugin",
-            .support_url = "https://github.com/multiplugin"
+            .name = PLUGIN_NAME,
+            .category = PLUGIN_CATEGORY,
+            .description = PLUGIN_DESCRIPTION,
+            .vendor = PLUGIN_VENDOR,
+            .support_url = PLUGIN_SUPPORT_URL
         };
     }
 

@@ -20,44 +20,9 @@
 #include "multiplugin/multiplugin.hpp"
 #include "multiplugin/core/version.hpp"
 #include "multiplugin/core/global.hpp"
-
-#ifndef PLUGIN_NAME
-#define PLUGIN_NAME "MultiPlugin"
-#endif
+#include "multiplugin/core/logger.hpp"
 
 extern "C" mp::PluginBase* mp_create_plugin();
-
-#ifndef AE_MATCH_NAME
-#define AE_MATCH_NAME "MP_MultiPlugin"
-#endif
-
-#ifndef PLUGIN_CATEGORY
-#define PLUGIN_CATEGORY "MultiPlugin"
-#endif
-
-#ifndef PLUGIN_SUPPORT_URL
-#define PLUGIN_SUPPORT_URL "https://github.com/multiplugin"
-#endif
-
-#ifndef AE_RESERVED_INFO
-#define AE_RESERVED_INFO 0
-#endif
-
-#ifndef AE_INFO_FLAGS
-#define AE_INFO_FLAGS 0
-#endif
-
-#ifndef AE_OUT_FLAGS
-#define AE_OUT_FLAGS (PF_OutFlag_DEEP_COLOR_AWARE | \
-                      PF_OutFlag_PIX_INDEPENDENT | \
-                      PF_OutFlag_NON_PARAM_VARY)
-#endif
-
-#ifndef AE_OUT_FLAGS2
-#define AE_OUT_FLAGS2 (PF_OutFlag2_FLOAT_COLOR_AWARE | \
-                       PF_OutFlag2_SUPPORTS_SMART_RENDER | \
-                       PF_OutFlag2_SUPPORTS_THREADED_RENDERING)
-#endif
 // Plugin-specific data
 static mp::PluginBase* g_plugin = nullptr;
 
@@ -267,6 +232,8 @@ static PF_Err GlobalSetup(PF_InData* in_data, PF_OutData* out_data,
         g_plugin = mp_create_plugin();
         if (g_plugin) {
             g_plugin->onGlobalSetup();
+        } else {
+            LOG_ERR << "Failed to create plugin instance";
         }
     }
 
@@ -352,6 +319,7 @@ static PF_Err Render(PF_InData* in_data, PF_OutData* out_data,
     PF_Err err = PF_Err_NONE;
 
     if (!g_plugin) {
+        LOG_ERR << "Plugin instance not available in Render";
         return PF_Err_INTERNAL_STRUCT_DAMAGED;
     }
 
@@ -410,6 +378,7 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
     PF_Err err2 = PF_Err_NONE;
 
     if (!g_plugin) {
+        LOG_ERR << "Plugin instance not available in SmartRender";
         return PF_Err_INTERNAL_STRUCT_DAMAGED;
     }
 
@@ -501,9 +470,11 @@ PF_Err EffectMain(PF_Cmd cmd, PF_InData* in_data, PF_OutData* out_data,
         }
     }
     catch (PF_Err& thrown_err) {
+        LOG_ERR << "PF_Err exception caught: " << thrown_err;
         err = thrown_err;
     }
     catch (...) {
+        LOG_ERR << "Unknown exception caught in EffectMain";
         err = PF_Err_INTERNAL_STRUCT_DAMAGED;
     }
 

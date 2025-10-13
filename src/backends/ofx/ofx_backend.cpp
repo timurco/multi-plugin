@@ -10,34 +10,12 @@
 #include <memory>
 #include <mutex>
 #include <cstdint>
+#include <iostream>
 
 #include "multiplugin/multiplugin.hpp"
 #include "multiplugin/core/version.hpp"
 #include "multiplugin/core/global.hpp"
-
-#ifndef PLUGIN_NAME
-#define PLUGIN_NAME "MultiPlugin"
-#endif
-
-#ifndef PLUGIN_CATEGORY
-#define PLUGIN_CATEGORY "MultiPlugin"
-#endif
-
-#ifndef PLUGIN_VENDOR
-#define PLUGIN_VENDOR "MultiPlugin"
-#endif
-
-#ifndef PLUGIN_VERSION
-#define PLUGIN_VERSION "0.0.0"
-#endif
-
-#ifndef PLUGIN_SUPPORT_URL
-#define PLUGIN_SUPPORT_URL "https://github.com/multiplugin"
-#endif
-
-#ifndef OFX_IDENTIFIER
-#define OFX_IDENTIFIER "com.multiplugin.default"
-#endif
+#include "multiplugin/core/logger.hpp"
 
 extern "C" mp::PluginBase* mp_create_plugin();
 
@@ -210,6 +188,8 @@ static OfxStatus loadAction()
         g_plugin = mp_create_plugin();
         if (g_plugin) {
             g_plugin->onGlobalSetup();
+        } else {
+            LOG_ERR << "Failed to create plugin instance!";
         }
     }
     return kOfxStatOK;
@@ -229,6 +209,7 @@ static OfxStatus unloadAction()
 static OfxStatus describeAction(OfxImageEffectHandle effect)
 {
     if (!g_plugin) {
+        LOG_ERR << "Plugin instance not available in describe!";
         return kOfxStatFailed;
     }
 
@@ -346,6 +327,9 @@ static OfxStatus pluginMain(const char* action, const void* handle,
 // Plugin factory
 static void setHost(OfxHost* host)
 {
+    // Initialize logger with plugin-specific name
+    mp::logger::set_log_base(std::string(PLUGIN_NAME) + "_OFX");
+
     gHost = host;
     if (host) {
         gPropertySuite = (const OfxPropertySuiteV1*)host->fetchSuite(
@@ -354,6 +338,11 @@ static void setHost(OfxHost* host)
             host->host, kOfxImageEffectSuite, 1);
         gParamSuite = (const OfxParameterSuiteV1*)host->fetchSuite(
             host->host, kOfxParameterSuite, 1);
+        if (!gPropertySuite || !gEffectSuite || !gParamSuite) {
+            LOG_ERR << "Failed to fetch OFX suites!";
+        }
+    } else {
+        LOG_ERR << "Host is NULL!";
     }
 }
 
