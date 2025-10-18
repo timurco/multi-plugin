@@ -1,8 +1,11 @@
 /**
  * @file ofx_backend.cpp
  * @brief OpenFX backend implementation for MultiPlugin
+ *
+ * Uses pure OFX C API (not C++ Support Library)
  */
 
+#include <ofxCore.h>
 #include <ofxImageEffect.h>
 #include <ofxMemory.h>
 #include <ofxMultiThread.h>
@@ -154,6 +157,14 @@ public:
 
     double getTime() const override { return time_; }
     int getFrame() const override { return frame_; }
+
+    void* getBackendHandle() const override {
+        return static_cast<void*>(effect_);
+    }
+
+    const OfxParameterSuiteV1* getParamSuite() const {
+        return gParamSuite;
+    }
 };
 
 } // namespace mp

@@ -429,10 +429,9 @@ function(_mp_add_ofx_plugin)
         ${PLUGIN_LIBRARIES}
     )
 
-    # Add OFX Support if available
-    if(TARGET OFX::Support)
-        target_link_libraries(${TARGET_NAME} PRIVATE OFX::Support)
-    endif()
+    # NOTE: We don't link OFX::Support - we use pure C API implementation
+    # OFX::Support requires implementing OFX::Plugin::getPluginIDs() which is unnecessary
+    # since we already have complete C API implementation in ofx_backend.cpp
 
     # Compile definitions
     target_compile_definitions(${TARGET_NAME} PRIVATE

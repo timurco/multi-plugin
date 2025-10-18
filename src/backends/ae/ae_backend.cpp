@@ -3,6 +3,24 @@
  * @brief After Effects backend implementation for MultiPlugin
  */
 
+// CRITICAL: Include ALL standard library headers BEFORE any AE SDK headers
+// The AE SDK pollutes the global namespace, breaking std::chrono and other headers
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <utility>
+
+// AE SDK headers (must come AFTER standard library)
 #include <AE_Effect.h>
 #include <AE_EffectCB.h>
 #include <AE_Macros.h>
@@ -17,14 +35,24 @@
 #include <AE_PluginData.h>
 #include <entry.h>
 
+// MultiPlugin headers (include after AE SDK)
 #include "multiplugin/multiplugin.hpp"
 #include "multiplugin/core/version.hpp"
 #include "multiplugin/core/global.hpp"
 #include "multiplugin/core/logger.hpp"
 
+// Backend-specific parameter implementation (must be after AE SDK headers)
+#include "multiplugin/params/ae_param_impl.hpp"
+
 extern "C" mp::PluginBase* mp_create_plugin();
+
 // Plugin-specific data
 static mp::PluginBase* g_plugin = nullptr;
+
+// Parameter enum
+enum {
+    INPUT_LAYER = 0
+};
 
 // Forward declarations
 static PF_Err GlobalSetup(PF_InData* in_data, PF_OutData* out_data,
@@ -45,6 +73,11 @@ static PF_Err PreRender(PF_InData* in_data, PF_OutData* out_data,
                         PF_PreRenderExtra* extra);
 static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
                           PF_SmartRenderExtra* extra);
+static PF_Err UpdateParamsUI(PF_InData* in_data, PF_OutData* out_data,
+                             PF_ParamDef* params[], PF_LayerDef* output);
+static PF_Err UserChangedParam(PF_InData* in_data, PF_OutData* out_data,
+                               PF_ParamDef* params[],
+                               const PF_UserChangedParamExtra* which_hitP);
 
 // Helpers to get pixel format from world (simplified from ae_common.hpp)
 static PF_Err GetPixelFormatFromWorld(PF_EffectWorld* world, PF_InData* in_data,
@@ -119,6 +152,7 @@ private:
     AEImageBuffer input_buffer_;
     AEImageBuffer output_buffer_;
     PixelFormat format_;
+    std::pair<PF_InData*, PF_OutData*> backend_handle_;  // For fetchParams
 
 public:
     AERenderContext(PF_InData* in_data, PF_OutData* out_data,
@@ -127,7 +161,8 @@ public:
           input_(input), output_(output),
           input_buffer_(input, determineFormat(output, in_data, out_data)),
           output_buffer_(output, determineFormat(output, in_data, out_data)),
-          format_(determineFormat(output, in_data, out_data)) {}
+          format_(determineFormat(output, in_data, out_data)),
+          backend_handle_(in_data, out_data) {}
 
     ImageBuffer& getInput(int index = 0) override {
         return input_buffer_;
@@ -148,6 +183,10 @@ public:
         double fps = static_cast<double>(in_data_->time_scale) /
                     static_cast<double>(in_data_->time_step);
         return static_cast<int>(getTime() * fps);
+    }
+
+    void* getBackendHandle() const override {
+        return const_cast<std::pair<PF_InData*, PF_OutData*>*>(&backend_handle_);
     }
 
 private:
@@ -189,12 +228,6 @@ private:
 };
 
 } // namespace mp
-
-// Parameter enum
-enum {
-    INPUT_LAYER = 0,
-    NUM_PARAMS
-};
 
 // GlobalSetup - called once when plugin loads
 static PF_Err GlobalSetup(PF_InData* in_data, PF_OutData* out_data,
@@ -249,15 +282,21 @@ static PF_Err GlobalSetdown(PF_InData* in_data, PF_OutData* out_data,
     return PF_Err_NONE;
 }
 
-// ParamsSetup - define parameters (none for now, will integrate UParams later)
+// ParamsSetup - define parameters
 static PF_Err ParamsSetup(PF_InData* in_data, PF_OutData* out_data,
                           PF_ParamDef* params[], PF_LayerDef* output)
 {
     PF_Err err = PF_Err_NONE;
-    PF_ParamDef def;
 
-    // For now, just set the number of params (input layer only)
-    out_data->num_params = NUM_PARAMS;
+    // Create parameter builder (use :: prefix to avoid AE SDK namespace pollution)
+    mp::AEParamBuilder builder(in_data, out_data, 0);  // 0 = no extra input layers
+
+    if (g_plugin) {
+        // Call plugin's virtual buildParams method
+        // For plugins with parameters, PluginWithParams<T> CRTP will override this
+        // For plugins without parameters, the default empty implementation is used
+        g_plugin->buildParams(builder);
+    }
 
     return err;
 }
@@ -272,11 +311,12 @@ static PF_Err About(PF_InData* in_data, PF_OutData* out_data,
         // Create about string
         char about_str[256];
         snprintf(about_str, sizeof(about_str),
-                "%s v%d.%d.%d\n%s\n\nby %s\n%s",
+                "%s v%d.%d.%d build %d\n%s\n\nby %s\n%s",
                 info.name,
-                mp::getPluginVersion().major,
-                mp::getPluginVersion().minor,
-                mp::getPluginVersion().patch,
+                ::mp::getPluginVersion().major,
+                ::mp::getPluginVersion().minor,
+                ::mp::getPluginVersion().patch,
+                ::mp::getPluginVersion().build,
                 info.description,
                 info.vendor,
                 info.support_url);
@@ -411,6 +451,53 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
     return err;
 }
 
+/**
+ * @brief Update parameter UI state
+ * Called when parameters need UI updates (visibility, enabled state, etc.)
+ */
+static PF_Err UpdateParamsUI(PF_InData* in_data, PF_OutData* out_data,
+                            PF_ParamDef* params[], PF_LayerDef* output) {
+    PF_Err err = PF_Err_NONE;
+
+    if (!g_plugin) {
+        return PF_Err_NONE;  // Plugin not initialized yet
+    }
+
+    // Create backend handle for plugin to access parameters
+    std::pair<PF_InData*, PF_OutData*> backend_handle(in_data, out_data);
+
+    // Call plugin's UI update handler
+    err = static_cast<PF_Err>(g_plugin->updateParamsUI(&backend_handle));
+
+    return err;
+}
+
+/**
+ * @brief Handle parameter changes
+ * Called when user modifies a parameter value
+ */
+static PF_Err UserChangedParam(PF_InData* in_data, PF_OutData* out_data,
+                              PF_ParamDef* params[],
+                              const PF_UserChangedParamExtra* which_hitP) {
+    PF_Err err = PF_Err_NONE;
+
+    if (!g_plugin) {
+        return PF_Err_NONE;
+    }
+
+    const int param_index = which_hitP->param_index;
+
+    // Create backend handle for plugin to access parameters
+    std::pair<PF_InData*, PF_OutData*> backend_handle(in_data, out_data);
+
+    // Note: disk_id mapping requires plugin to have ParamSet accessible
+    // For now, pass param_index directly - plugin can map it internally if needed
+    // Most plugins will use param_index directly to identify which parameter changed
+    g_plugin->handleParameterChange(param_index, &backend_handle);
+
+    return err;
+}
+
 // Main entry point
 extern "C"
 #ifdef _WIN32
@@ -459,6 +546,15 @@ PF_Err EffectMain(PF_Cmd cmd, PF_InData* in_data, PF_OutData* out_data,
             case PF_Cmd_SMART_RENDER:
                 err = SmartRender(in_data, out_data,
                                   reinterpret_cast<PF_SmartRenderExtra*>(extra));
+                break;
+
+            case PF_Cmd_UPDATE_PARAMS_UI:
+                err = UpdateParamsUI(in_data, out_data, params, output);
+                break;
+
+            case PF_Cmd_USER_CHANGED_PARAM:
+                err = UserChangedParam(in_data, out_data, params,
+                                      reinterpret_cast<const PF_UserChangedParamExtra*>(extra));
                 break;
 
             default:

@@ -13,15 +13,20 @@
 #include "multiplugin/core/parallel.hpp"
 #include "multiplugin/core/global.hpp"
 
+// Parameter system
+#include "multiplugin/params/params.hpp"
+
 // Forward declarations
 namespace mp {
     class PluginBase;
     class RenderContext;
     struct PluginInfo;
+    #ifdef BUILD_FOR_AE
+    class AEParamBuilder;
+    #elif BUILD_FOR_OFX  
+    class OFXParamBuilder;
+    #endif
 }
-
-// Include your enhanced UParams if available
-// #include "UParams.hpp"
 
 // Platform detection
 #if defined(BUILD_FOR_AE) && defined(BUILD_FOR_OFX)
@@ -64,6 +69,63 @@ public:
     // Rendering
     virtual void onRender(RenderContext& ctx) = 0;
 
+    // Parameter building - default implementation does nothing (for plugins without parameters)
+    #ifdef BUILD_FOR_AE
+    virtual void buildParams(AEParamBuilder& builder) {}
+    #elif BUILD_FOR_OFX
+    virtual void buildParams(OFXParamBuilder& builder) {}
+    #endif
+
+    // Parameter handling - dual pipeline for parameter changes and UI updates
+
+    /**
+     * @brief Handle parameter changes (User Actions Pipeline)
+     * Called when user changes a parameter value or clicks a button
+     * @param disk_id The disk ID of the changed parameter
+     * @param backend_handle Host-specific handle for parameter access
+     *
+     * Example implementation:
+     * ```cpp
+     * void handleParameterChange(int disk_id, void* backend_handle) override {
+     *     #ifdef BUILD_FOR_AE
+     *     auto* pair = static_cast<std::pair<PF_InData*, PF_OutData*>*>(backend_handle);
+     *     mp::AESource source(pair->first, pair->second);
+     *     #endif
+     *
+     *     if (disk_id == BUTTON_RESET) {
+     *         // Handle button click
+     *     }
+     * }
+     * ```
+     */
+    virtual void handleParameterChange(int disk_id, void* backend_handle) {}
+
+    /**
+     * @brief Update parameter UI states (UI Update Pipeline)
+     * Called to update parameter visibility, enabled state, ranges, etc.
+     * @param backend_handle Host-specific handle for parameter access
+     * @return 0 on success, non-zero on error
+     *
+     * Example implementation:
+     * ```cpp
+     * int updateParamsUI(void* backend_handle) override {
+     *     #ifdef BUILD_FOR_AE
+     *     auto* pair = static_cast<std::pair<PF_InData*, PF_OutData*>*>(backend_handle);
+     *     mp::AESource source(pair->first, pair->second);
+     *
+     *     // Fetch current parameter values
+     *     MyParams params;
+     *     getParams().fetch(source, params);
+     *
+     *     // Update UI based on current state
+     *     getParams().setEnabled(source, PARAM_COLOR, !params.use_original);
+     *     #endif
+     *     return 0;
+     * }
+     * ```
+     */
+    virtual int updateParamsUI(void* backend_handle) { return 0; }
+
     // Metadata - default implementation uses CMake-defined macros
     virtual PluginInfo getInfo() const {
         return {
@@ -78,6 +140,58 @@ public:
 protected:
     PluginBase(const PluginBase&) = delete;
     PluginBase& operator=(const PluginBase&) = delete;
+};
+
+/**
+ * @brief CRTP helper class for plugins with parameters
+ *
+ * Automatically implements buildParams() and provides type-safe access to kParams.
+ * This keeps plugin examples clean - no need to override parameter-related methods.
+ *
+ * Usage:
+ * @code
+ * class MyPlugin : public mp::PluginWithParams<MyPlugin> {
+ * public:
+ *     inline static auto kParams = mp::makeSet<MyParams>(...);
+ *
+ *     void onRender(mp::RenderContext& ctx) override {
+ *         // Use kParams directly
+ *     }
+ * };
+ * @endcode
+ *
+ * @tparam Derived The derived plugin class (CRTP pattern)
+ */
+template<typename Derived>
+class PluginWithParams : public PluginBase {
+public:
+    /**
+     * @brief Build parameters using the derived class's kParams
+     */
+    #ifdef BUILD_FOR_AE
+    void buildParams(mp::AEParamBuilder& builder) override {
+        Derived::kParams.build(builder);
+    }
+    #elif BUILD_FOR_OFX
+    void buildParams(OFXParamBuilder& builder) override {
+        Derived::kParams.build(builder);
+    }
+    #endif
+
+    /**
+     * @brief Get pointer to parameter set (for backend access)
+     * @return Pointer to derived class's kParams
+     */
+    void* getParamSetPtr() {
+        return &Derived::kParams;
+    }
+
+protected:
+    /**
+     * @brief Get reference to kParams for use in plugin code
+     */
+    auto& getParams() { return Derived::kParams; }
+    const auto& getParams() const { return Derived::kParams; }
 };
 
 /**
@@ -115,6 +229,35 @@ public:
     // Time information
     virtual double getTime() const = 0;
     virtual int getFrame() const = 0;
+
+    // Parameter fetching - implemented by backends
+    virtual void* getBackendHandle() const = 0;
+
+    /**
+     * @brief Fetch parameter values from host
+     * @tparam Bag Parameter struct type
+     * @tparam Ps Parameter types in the set
+     * @param paramSet The parameter set definition
+     * @param bag Output parameter struct to fill
+     * @return 0 on success, non-zero on error
+     */
+    template<typename Bag, typename... Ps>
+    int fetchParams(const ParamSet<Bag, Ps...>& paramSet, Bag& bag) {
+        void* handle = getBackendHandle();
+        if (!handle) return 1;
+
+#ifdef BUILD_FOR_OFX
+        // TODO: Implement OFX parameter fetching with C API
+        // Need to get OfxParamSetHandle and OfxParameterSuiteV1 from backend
+        return 1;  // Not implemented yet
+#elif defined(BUILD_FOR_AE)
+        auto* pair = static_cast<std::pair<PF_InData*, PF_OutData*>*>(handle);
+        AESource source(pair->first, pair->second);
+        return paramSet.fetch(source, bag);
+#else
+        return 1;
+#endif
+    }
 
     // Process pixels in parallel
     template<typename InPixel, typename OutPixel, typename Func>
@@ -186,7 +329,7 @@ public:
     // AE creates new instance each time (managed by backend)
     #define MP_REGISTER_PLUGIN(PluginClass) \
         extern "C" mp::PluginBase* mp_create_plugin() { \
-            return new PluginClass(); \
+            return static_cast<::mp::PluginBase*>(new PluginClass()); \
         }
 #endif
 
@@ -205,3 +348,9 @@ public:
             g_plugin_instance = nullptr; \
         }
 #endif
+
+#ifdef BUILD_FOR_AE
+  #include "multiplugin/params/ae_param_impl.hpp"
+  #elif BUILD_FOR_OFX
+  #include "multiplugin/params/ofx_param_impl.hpp"
+  #endif

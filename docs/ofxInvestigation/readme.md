@@ -1,0 +1,1 @@
+Здесь будут хранится выводы из OFX Support движка и самого OFX исходя из [репозитория](/Users/timurko/Code/experiments/davinci/openfx/HostSupport) и общения с Claude
