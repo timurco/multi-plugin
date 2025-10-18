@@ -10,10 +10,16 @@
 // Parameter disk IDs for serialization
 enum {
     PARAM_MIX = 0,
+    PARAM_CHANNEL_GROUP,
     PARAM_INVERT_RED,
     PARAM_INVERT_GREEN,
     PARAM_INVERT_BLUE,
-    PARAM_BLEND_MODE
+    PARAM_CHANNEL_GROUP_END,
+    PARAM_BLEND_MODE,
+    PARAM_COLOR_TINT,
+    PARAM_ADVANCED_GROUP,
+    PARAM_THRESHOLD,
+    PARAM_ADVANCED_GROUP_END
 };
 
 // Parameters structure
@@ -23,6 +29,8 @@ struct InvertParams {
     bool invert_green = true; // Invert green channel
     bool invert_blue = true;  // Invert blue channel
     int blend_mode = 0;       // 0=Normal, 1=Screen, 2=Multiply
+    float color_tint[4] = {1.0f, 1.0f, 1.0f, 1.0f}; // RGBA tint
+    float threshold = 0.0f;   // Threshold value (0-100)
 };
 
 /**
@@ -34,7 +42,28 @@ public:
     inline static auto kParams = mp::makeSet<InvertParams>(
         // Float slider with fluent methods
         mp::floatSlider(PARAM_MIX, &InvertParams::mix, "Mix",
-                        0.0f, 100.0f, 100.0f).sliderRange(0.0f, 100.0f).percent().precision(1)
+                        0.0f, 100.0f, 100.0f).sliderRange(0.0f, 100.0f).percent().precision(1),
+
+        // Channel group
+        mp::groupBegin(PARAM_CHANNEL_GROUP, "Channels"),
+        mp::checkbox(PARAM_INVERT_RED, &InvertParams::invert_red, "Invert Red", true),
+        mp::checkbox(PARAM_INVERT_GREEN, &InvertParams::invert_green, "Invert Green", true),
+        mp::checkbox(PARAM_INVERT_BLUE, &InvertParams::invert_blue, "Invert Blue", true),
+        mp::groupEnd(PARAM_CHANNEL_GROUP_END),
+
+        // Popup for blend mode
+        mp::popup(PARAM_BLEND_MODE, &InvertParams::blend_mode, "Blend Mode",
+                  "Normal|Screen|Multiply", 0),
+
+        // Color parameter
+        mp::color(PARAM_COLOR_TINT, &InvertParams::color_tint, "Color Tint",
+                  {1.0f, 1.0f, 1.0f, 1.0f}),
+
+        // Advanced group
+        mp::groupBegin(PARAM_ADVANCED_GROUP, "Advanced"),
+        mp::floatSlider(PARAM_THRESHOLD, &InvertParams::threshold, "Threshold",
+                        0.0f, 100.0f, 0.0f).sliderRange(0.0f, 100.0f).precision(2),
+        mp::groupEnd(PARAM_ADVANCED_GROUP_END)
     );
 
 private:
@@ -84,6 +113,14 @@ public:
         ctx.processAuto([&](int x, int y, auto* in, auto* out) {
             using PixelT = std::remove_pointer_t<decltype(in)>;
 
+            // Apply threshold (if pixel brightness below threshold, skip inversion)
+            float brightness = (in->r + in->g + in->b) / (3.0f * PixelT::max_value);
+            if (brightness * 100.0f < params.threshold) {
+                // Below threshold - copy input to output
+                *out = *in;
+                return false;
+            }
+
             // Invert channels based on flags
             float inv_r = params.invert_red ? (PixelT::max_value - in->r) : in->r;
             float inv_g = params.invert_green ? (PixelT::max_value - in->g) : in->g;
@@ -109,13 +146,18 @@ public:
                     break;
             }
 
+            // Apply color tint
+            result_r *= params.color_tint[0];
+            result_g *= params.color_tint[1];
+            result_b *= params.color_tint[2];
+
             // Mix with original
             out->r = static_cast<decltype(out->r)>(mp::lerp(static_cast<float>(in->r), result_r, mix_factor));
             out->g = static_cast<decltype(out->g)>(mp::lerp(static_cast<float>(in->g), result_g, mix_factor));
             out->b = static_cast<decltype(out->b)>(mp::lerp(static_cast<float>(in->b), result_b, mix_factor));
 
-            // Preserve alpha
-            out->a = in->a;
+            // Preserve alpha (with tint alpha applied)
+            out->a = static_cast<decltype(out->a)>(in->a * params.color_tint[3]);
 
             return false; // success
         });

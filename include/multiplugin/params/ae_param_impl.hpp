@@ -383,10 +383,24 @@ inline void addParam(B& b, FlagCheckboxBuilder<Bag>& p) {
     p.param_.handle = param.handle;
 }
 
-// Group start and end - Note: no GroupBeginBuilder/GroupEndBuilder in current implementation
-// Groups are created directly via groupStart()/groupEnd() helper functions
+// Group start and end - raw Param objects, not builders
+template<class B>
+inline void addParam(B& b, Param<void, SpecGroup, HGroup, std::nullptr_t>& p) {
+    if (p.spec.is_start) {
+        p.handle = b.groupStart(p.spec.disk_id, p.spec.unique_name, p.spec.name);
+    } else {
+        p.handle = b.groupEnd(p.spec.disk_id);
+    }
+}
 
 } // namespace detail
+
+// Helper trait to detect if type has param_ member (is a builder vs raw Param)
+template<typename T, typename = void>
+struct has_param_member_ae : std::false_type {};
+
+template<typename T>
+struct has_param_member_ae<T, std::void_t<decltype(std::declval<T>().param_)>> : std::true_type {};
 
 // Implementation of ParamSet::buildOne for AE - uses detail::addParam overload resolution
 template<class Bag, class... Ps>
@@ -399,56 +413,63 @@ void ParamSet<Bag, Ps...>::buildOne(Builder& builder, P& param) {
 template<class Bag, class... Ps>
 template<class Source, class P>
 int ParamSet<Bag, Ps...>::fetchOne(const Source& source, Bag& bag, const P& p) const {
-    // Access the internal param_ member from builder
-    const auto& param = p.param_;
+    // Check if P has param_ member (builder) or is raw Param
+    if constexpr (has_param_member_ae<P>::value) {
+        // Builder type - access internal param_
+        const auto& param = p.param_;
 
-    // Skip parameters without values (like buttons and groups)
-    if constexpr (std::is_same_v<typename P::val_type, std::nullptr_t>) {
-        return 0;
-    }
-
-    // Checkout parameter
-    PF_ParamDef d{{0}};
-    if (auto err = source.co(param.handle.id, &d)) {
-        return err;
-    }
-
-    // Extract value based on spec type
-    if constexpr (std::is_same_v<typename P::spec_type, SpecFloat>) {
-        float v = d.u.fs_d.value;
-        if (param.spec.is_percent) {
-            v *= 0.01f;
+        // Skip parameters without values (like buttons and groups)
+        if constexpr (std::is_same_v<typename P::val_type, std::nullptr_t>) {
+            return 0;
         }
-        bag.*(param.member) = v;
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecInt>) {
-        bag.*(param.member) = static_cast<typename P::val_type>(d.u.sd.value);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecColor>) {
-        auto& c = bag.*(param.member);
-        c[0] = d.u.cd.value.red   / static_cast<float>(PF_MAX_CHAN8);
-        c[1] = d.u.cd.value.green / static_cast<float>(PF_MAX_CHAN8);
-        c[2] = d.u.cd.value.blue  / static_cast<float>(PF_MAX_CHAN8);
-        c[3] = d.u.cd.value.alpha / static_cast<float>(PF_MAX_CHAN8);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecBool>) {
-        bag.*(param.member) = (d.u.bd.value != 0);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecFlag>) {
-        if (d.u.bd.value != 0) {
-            bag.*(param.member) |= param.spec.flag_mask;
-        } else {
-            bag.*(param.member) &= ~param.spec.flag_mask;
+
+        // Checkout parameter
+        PF_ParamDef d{{0}};
+        if (auto err = source.co(param.handle.id, &d)) {
+            return err;
         }
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecPopup>) {
-        bag.*(param.member) = static_cast<typename P::val_type>(d.u.pd.value);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecAngle>) {
-        float degrees = static_cast<float>(d.u.ad.value) / 65536.0f;
-        bag.*(param.member) = degrees * static_cast<float>(M_PI) / 180.0f;
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecPoint2D>) {
-        auto& pt = bag.*(param.member);
-        pt[0] = static_cast<float>(d.u.td.x_value >> 16);
-        pt[1] = static_cast<float>(d.u.td.y_value >> 16);
+
+        // Extract value based on spec type
+        if constexpr (std::is_same_v<typename P::spec_type, SpecFloat>) {
+            float v = d.u.fs_d.value;
+            if (param.spec.is_percent) {
+                v *= 0.01f;
+            }
+            bag.*(param.member) = v;
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecInt>) {
+            bag.*(param.member) = static_cast<typename P::val_type>(d.u.sd.value);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecColor>) {
+            auto& c = bag.*(param.member);
+            c[0] = d.u.cd.value.red   / static_cast<float>(PF_MAX_CHAN8);
+            c[1] = d.u.cd.value.green / static_cast<float>(PF_MAX_CHAN8);
+            c[2] = d.u.cd.value.blue  / static_cast<float>(PF_MAX_CHAN8);
+            c[3] = d.u.cd.value.alpha / static_cast<float>(PF_MAX_CHAN8);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecBool>) {
+            bag.*(param.member) = (d.u.bd.value != 0);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecFlag>) {
+            if (d.u.bd.value != 0) {
+                bag.*(param.member) |= param.spec.flag_mask;
+            } else {
+                bag.*(param.member) &= ~param.spec.flag_mask;
+            }
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecPopup>) {
+            bag.*(param.member) = static_cast<typename P::val_type>(d.u.pd.value);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecAngle>) {
+            float degrees = static_cast<float>(d.u.ad.value) / 65536.0f;
+            bag.*(param.member) = degrees * static_cast<float>(M_PI) / 180.0f;
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecPoint2D>) {
+            auto& pt = bag.*(param.member);
+            pt[0] = static_cast<float>(d.u.td.x_value >> 16);
+            pt[1] = static_cast<float>(d.u.td.y_value >> 16);
+        }
+
+        // Checkin parameter
+        source.ci(&d);
+    } else {
+        // Raw Param (groups) - skip, they have no values to fetch
+        // Groups already have spec_type == SpecGroup and val_type == std::nullptr_t
     }
 
-    // Checkin parameter
-    source.ci(&d);
     return 0;
 }
 

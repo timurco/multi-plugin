@@ -30,9 +30,12 @@ set(MP_VERSION_STAGE 0) # PF_Stage_DEVELOP
 # Auto-increment build number
 if(EXISTS "${CMAKE_BINARY_DIR}/build_number.txt")
     file(READ "${CMAKE_BINARY_DIR}/build_number.txt" MP_VERSION_BUILD)
+    message(STATUS "build_number.txt exists, current build number: ${MP_VERSION_BUILD}")
     math(EXPR MP_VERSION_BUILD "${MP_VERSION_BUILD} + 1")
+    message(STATUS "Incremented build number: ${MP_VERSION_BUILD}")
 else()
     set(MP_VERSION_BUILD 1)
+    message(STATUS "build_number.txt does not exist, setting build number to 1")
 endif()
 file(WRITE "${CMAKE_BINARY_DIR}/build_number.txt" "${MP_VERSION_BUILD}")
 

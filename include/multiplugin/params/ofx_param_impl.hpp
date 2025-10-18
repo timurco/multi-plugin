@@ -242,54 +242,69 @@ public:
     }
 };
 
+// Helper trait to detect if type has param_ member (is a builder vs raw Param)
+template<typename T, typename = void>
+struct has_param_member : std::false_type {};
+
+template<typename T>
+struct has_param_member<T, std::void_t<decltype(std::declval<T>().param_)>> : std::true_type {};
+
 // Implementation of ParamSet member functions for OFX
 
 template<class Bag, class... Ps>
 template<class Builder, class P>
 void ParamSet<Bag, Ps...>::buildOne(Builder& builder, P& param) {
-    // Access param_ directly to avoid dangling reference in spec/handle members
-    auto& p = param.param_;
+    // Check if P has param_ member (builder) or is raw Param
+    if constexpr (has_param_member<P>::value) {
+        // Builder type (FloatSliderBuilder, etc.) - access internal param_
+        auto& p = param.param_;
 
-    if constexpr (std::is_same_v<typename P::spec_type, SpecFloat>) {
-        p.handle = builder.floatSlider(p.spec.disk_id, p.spec.unique_name,
-                                       p.spec.name, p.spec.min, p.spec.max,
-                                       p.spec.slider_min, p.spec.slider_max,
-                                       p.spec.default_val, p.spec.precision,
-                                       p.spec.is_percent);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecInt>) {
-        p.handle = builder.intSlider(p.spec.disk_id, p.spec.unique_name,
-                                     p.spec.name, p.spec.min, p.spec.max,
-                                     p.spec.slider_min, p.spec.slider_max,
-                                     p.spec.default_val);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecColor>) {
-        p.handle = builder.color(p.spec.disk_id, p.spec.unique_name,
-                                 p.spec.name, p.spec.default_color);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecBool>) {
-        p.handle = builder.checkbox(p.spec.disk_id, p.spec.unique_name,
-                                    p.spec.name, p.spec.default_val);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecFlag>) {
-        p.handle = builder.checkbox(p.spec.disk_id, p.spec.unique_name,
-                                    p.spec.name, p.spec.default_val);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecButton>) {
-        p.handle = builder.button(p.spec.disk_id, p.spec.unique_name,
-                                  p.spec.name, p.spec.label);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecPopup>) {
-        p.handle = builder.popup(p.spec.disk_id, p.spec.unique_name,
-                                 p.spec.name, p.spec.items,
-                                 p.spec.default_index);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecAngle>) {
-        p.handle = builder.angle(p.spec.disk_id, p.spec.unique_name,
-                                 p.spec.name, p.spec.default_val);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecPoint2D>) {
-        p.handle = builder.point2D(p.spec.disk_id, p.spec.unique_name,
-                                   p.spec.name, p.spec.default_x,
-                                   p.spec.default_y);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecGroup>) {
-        if (p.spec.is_start) {
-            p.handle = builder.groupStart(p.spec.disk_id, p.spec.unique_name,
-                                         p.spec.name);
-        } else {
-            p.handle = builder.groupEnd(p.spec.disk_id);
+        if constexpr (std::is_same_v<typename P::spec_type, SpecFloat>) {
+            p.handle = builder.floatSlider(p.spec.disk_id, p.spec.unique_name,
+                                           p.spec.name, p.spec.min, p.spec.max,
+                                           p.spec.slider_min, p.spec.slider_max,
+                                           p.spec.default_val, p.spec.precision,
+                                           p.spec.is_percent);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecInt>) {
+            p.handle = builder.intSlider(p.spec.disk_id, p.spec.unique_name,
+                                         p.spec.name, p.spec.min, p.spec.max,
+                                         p.spec.slider_min, p.spec.slider_max,
+                                         p.spec.default_val);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecColor>) {
+            p.handle = builder.color(p.spec.disk_id, p.spec.unique_name,
+                                     p.spec.name, p.spec.default_color);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecBool>) {
+            p.handle = builder.checkbox(p.spec.disk_id, p.spec.unique_name,
+                                        p.spec.name, p.spec.default_val);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecFlag>) {
+            p.handle = builder.checkbox(p.spec.disk_id, p.spec.unique_name,
+                                        p.spec.name, p.spec.default_val);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecButton>) {
+            p.handle = builder.button(p.spec.disk_id, p.spec.unique_name,
+                                      p.spec.name, p.spec.label);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecPopup>) {
+            p.handle = builder.popup(p.spec.disk_id, p.spec.unique_name,
+                                     p.spec.name, p.spec.items,
+                                     p.spec.default_index);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecAngle>) {
+            p.handle = builder.angle(p.spec.disk_id, p.spec.unique_name,
+                                     p.spec.name, p.spec.default_val);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecPoint2D>) {
+            p.handle = builder.point2D(p.spec.disk_id, p.spec.unique_name,
+                                       p.spec.name, p.spec.default_x,
+                                       p.spec.default_y);
+        }
+    } else {
+        // Raw Param (from groupBegin/groupEnd) - use directly
+        auto& p = param;
+
+        if constexpr (std::is_same_v<typename P::spec_type, SpecGroup>) {
+            if (p.spec.is_start) {
+                p.handle = builder.groupStart(p.spec.disk_id, p.spec.unique_name,
+                                             p.spec.name);
+            } else {
+                p.handle = builder.groupEnd(p.spec.disk_id);
+            }
         }
     }
 }

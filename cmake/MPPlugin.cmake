@@ -303,7 +303,9 @@ function(mp_add_plugin)
         set(PLUGIN_BUNDLE_IDENTIFIER_OFX "${PLUGIN_OFX_IDENTIFIER}")
     endif()
 
-    message(STATUS "Configuring plugin: ${PLUGIN_NAME} v${PLUGIN_VERSION}")
+    # Set Color to Blue for debugging
+    string(ASCII 27 ESC)
+    message("-- ${ESC}[34mConfiguring plugin: ${PLUGIN_NAME} v${PLUGIN_VERSION} build ${PLUGIN_VERSION_BUILD}${ESC}[0m")
 
     # Build AE version
     if("AE" IN_LIST PLUGIN_HOSTS AND BUILD_AE_PLUGINS)

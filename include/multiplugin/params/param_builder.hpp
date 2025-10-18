@@ -77,8 +77,13 @@ public:
 template<class Bag, class T>
 class IntSliderBuilder {
 public:
+    using spec_type = SpecInt;
+    using handle_type = HInt;
+    using val_type = T;
+
     // Public for detail::addParam access
     Param<Bag, SpecInt, HInt, T> param_;
+
     IntSliderBuilder(unsigned int disk_id, T Bag::*member, const char* name,
                     int min, int max, int default_val)
         : param_{member, {name, min, max, min, max, default_val,
@@ -102,8 +107,13 @@ public:
 template<class Bag>
 class CheckboxBuilder {
 public:
+    using spec_type = SpecBool;
+    using handle_type = HBool;
+    using val_type = bool;
+
     // Public for detail::addParam access
     Param<Bag, SpecBool, HBool, bool> param_;
+
     CheckboxBuilder(unsigned int disk_id, bool Bag::*member, const char* name,
                    bool default_val = false)
         : param_{member, {name, default_val, disk_id, genUniqueName(disk_id, name)}, {}} {}
@@ -117,8 +127,13 @@ public:
 template<class Bag, class T>
 class PopupBuilder {
 public:
+    using spec_type = SpecPopup;
+    using handle_type = HPopup;
+    using val_type = T;
+
     // Public for detail::addParam access
     Param<Bag, SpecPopup, HPopup, T> param_;
+
     PopupBuilder(unsigned int disk_id, T Bag::*member, const char* name,
                 const char* items, int default_index = 0)
         : param_{member, {name, items, default_index, disk_id, genUniqueName(disk_id, name)}, {}} {}
@@ -133,8 +148,13 @@ template<class Bag>
 class ColorBuilder {
     using Arr = float[4];
 public:
+    using spec_type = SpecColor;
+    using handle_type = HColor;
+    using val_type = Arr;
+
     // Public for detail::addParam access
     Param<Bag, SpecColor, HColor, Arr> param_;
+
     ColorBuilder(unsigned int disk_id, float (Bag::*member)[4], const char* name,
                 const float (&default_color)[4])
         : param_{member, {name, {default_color[0], default_color[1],
@@ -150,8 +170,13 @@ public:
 template<class Bag>
 class AngleBuilder {
 public:
+    using spec_type = SpecAngle;
+    using handle_type = HAngle;
+    using val_type = float;
+
     // Public for detail::addParam access
     Param<Bag, SpecAngle, HAngle, float> param_;
+
     AngleBuilder(unsigned int disk_id, float Bag::*member, const char* name,
                 float default_val = 0.0f)
         : param_{member, {name, default_val, disk_id, genUniqueName(disk_id, name)}, {}} {}
@@ -166,8 +191,13 @@ template<class Bag>
 class Point2DBuilder {
     using Arr = float[2];
 public:
+    using spec_type = SpecPoint2D;
+    using handle_type = HPoint2D;
+    using val_type = Arr;
+
     // Public for detail::addParam access
     Param<Bag, SpecPoint2D, HPoint2D, Arr> param_;
+
     Point2DBuilder(unsigned int disk_id, float (Bag::*member)[2], const char* name,
                   float default_x = 0.0f, float default_y = 0.0f)
         : param_{member, {name, default_x, default_y, disk_id, genUniqueName(disk_id, name)}, {}} {}
@@ -181,8 +211,13 @@ public:
 template<class Bag>
 class FlagCheckboxBuilder {
 public:
+    using spec_type = SpecFlag;
+    using handle_type = HBool;
+    using val_type = uint32_t;
+
     // Public for detail::addParam access
     Param<Bag, SpecFlag, HBool, uint32_t> param_;
+
     FlagCheckboxBuilder(unsigned int disk_id, uint32_t Bag::*member,
                        uint32_t flag_mask, const char* name, bool default_val = false)
         : param_{member, {name, default_val, disk_id, flag_mask, genUniqueName(disk_id, name)}, {}} {}
@@ -196,9 +231,14 @@ public:
 template<class Bag>
 class ButtonBuilder {
 public:
+    using spec_type = SpecButton;
+    using handle_type = HButton;
+    using val_type = std::nullptr_t;
+
     // Public for detail::addParam access
     Param<Bag, SpecButton, HButton, std::nullptr_t> param_;
     std::function<void(ParamContext<Bag>&)> callback_;
+
     ButtonBuilder(unsigned int disk_id, const char* name, const char* label)
         : param_{nullptr, {name, label, disk_id, genUniqueName(disk_id, name)}, {}} {}
 
