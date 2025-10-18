@@ -312,59 +312,66 @@ void ParamSet<Bag, Ps...>::buildOne(Builder& builder, P& param) {
 template<class Bag, class... Ps>
 template<class Source, class P>
 int ParamSet<Bag, Ps...>::fetchOne(const Source& source, Bag& bag, const P& param) const {
-    // Skip parameters without values
+    // Skip parameters without values (groups, buttons)
     if constexpr (std::is_same_v<typename P::val_type, std::nullptr_t>) {
         return 0;
     }
 
-    // Access param_ directly to avoid dangling reference
-    const auto& p = param.param_;
+    // Check if P has param_ member (builder) or is raw Param
+    // For OFX, only builders are used for value parameters
+    if constexpr (!has_param_member<P>::value) {
+        // Raw Param without values (shouldn't happen for value parameters)
+        return 0;
+    } else {
+        // Access param_ for builder types
+        const auto& p = param.param_;
 
-    if constexpr (std::is_same_v<typename P::spec_type, SpecFloat>) {
-        double value;
-        if (source.pullDouble(p.spec.unique_name, &value)) return 1;
-        if (p.spec.is_percent) {
-            value *= 0.01;
+        if constexpr (std::is_same_v<typename P::spec_type, SpecFloat>) {
+            double value;
+            if (source.pullDouble(p.spec.unique_name, &value)) return 1;
+            if (p.spec.is_percent) {
+                value *= 0.01;
+            }
+            bag.*(p.member) = static_cast<float>(value);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecInt>) {
+            int value;
+            if (source.pullInt(p.spec.unique_name, &value)) return 1;
+            bag.*(p.member) = static_cast<typename P::val_type>(value);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecColor>) {
+            double r, g, b, a;
+            if (source.pullColor(p.spec.unique_name, &r, &g, &b, &a)) return 1;
+            auto& c = bag.*(p.member);
+            c[0] = static_cast<float>(r);
+            c[1] = static_cast<float>(g);
+            c[2] = static_cast<float>(b);
+            c[3] = static_cast<float>(a);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecBool>) {
+            bool value;
+            if (source.pullBool(p.spec.unique_name, &value)) return 1;
+            bag.*(p.member) = value;
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecFlag>) {
+            bool value;
+            if (source.pullBool(p.spec.unique_name, &value)) return 1;
+            if (value) {
+                bag.*(p.member) |= p.spec.flag_mask;
+            } else {
+                bag.*(p.member) &= ~p.spec.flag_mask;
+            }
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecPopup>) {
+            int value;
+            if (source.pullChoice(p.spec.unique_name, &value)) return 1;
+            bag.*(p.member) = static_cast<typename P::val_type>(value);
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecAngle>) {
+            double value;
+            if (source.pullDouble(p.spec.unique_name, &value)) return 1;
+            bag.*(p.member) = static_cast<float>(value * M_PI / 180.0); // Convert degrees to radians
+        } else if constexpr (std::is_same_v<typename P::spec_type, SpecPoint2D>) {
+            double x, y;
+            if (source.pullDouble2D(p.spec.unique_name, &x, &y)) return 1;
+            auto& pt = bag.*(p.member);
+            pt[0] = static_cast<float>(x);
+            pt[1] = static_cast<float>(y);
         }
-        bag.*(p.member) = static_cast<float>(value);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecInt>) {
-        int value;
-        if (source.pullInt(p.spec.unique_name, &value)) return 1;
-        bag.*(p.member) = static_cast<typename P::val_type>(value);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecColor>) {
-        double r, g, b, a;
-        if (source.pullColor(p.spec.unique_name, &r, &g, &b, &a)) return 1;
-        auto& c = bag.*(p.member);
-        c[0] = static_cast<float>(r);
-        c[1] = static_cast<float>(g);
-        c[2] = static_cast<float>(b);
-        c[3] = static_cast<float>(a);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecBool>) {
-        bool value;
-        if (source.pullBool(p.spec.unique_name, &value)) return 1;
-        bag.*(p.member) = value;
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecFlag>) {
-        bool value;
-        if (source.pullBool(p.spec.unique_name, &value)) return 1;
-        if (value) {
-            bag.*(p.member) |= p.spec.flag_mask;
-        } else {
-            bag.*(p.member) &= ~p.spec.flag_mask;
-        }
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecPopup>) {
-        int value;
-        if (source.pullChoice(p.spec.unique_name, &value)) return 1;
-        bag.*(p.member) = static_cast<typename P::val_type>(value);
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecAngle>) {
-        double value;
-        if (source.pullDouble(p.spec.unique_name, &value)) return 1;
-        bag.*(p.member) = static_cast<float>(value * M_PI / 180.0); // Convert degrees to radians
-    } else if constexpr (std::is_same_v<typename P::spec_type, SpecPoint2D>) {
-        double x, y;
-        if (source.pullDouble2D(p.spec.unique_name, &x, &y)) return 1;
-        auto& pt = bag.*(p.member);
-        pt[0] = static_cast<float>(x);
-        pt[1] = static_cast<float>(y);
     }
 
     return 0;

@@ -223,8 +223,8 @@ public:
         }
 
         d.u.pd.num_choices = static_cast<A_short>(numChoices);
-        d.u.pd.dephault    = defIdx;
-        d.u.pd.value       = defIdx;
+        d.u.pd.dephault    = defIdx + 1;
+        d.u.pd.value       = defIdx + 1;
         d.u.pd.u.namesptr  = items;
 
         return commit<HPopup>(d, disk_id);
@@ -453,7 +453,7 @@ int ParamSet<Bag, Ps...>::fetchOne(const Source& source, Bag& bag, const P& p) c
                 bag.*(param.member) &= ~param.spec.flag_mask;
             }
         } else if constexpr (std::is_same_v<typename P::spec_type, SpecPopup>) {
-            bag.*(param.member) = static_cast<typename P::val_type>(d.u.pd.value);
+            bag.*(param.member) = static_cast<typename P::val_type>(d.u.pd.value - 1);
         } else if constexpr (std::is_same_v<typename P::spec_type, SpecAngle>) {
             float degrees = static_cast<float>(d.u.ad.value) / 65536.0f;
             bag.*(param.member) = degrees * static_cast<float>(M_PI) / 180.0f;

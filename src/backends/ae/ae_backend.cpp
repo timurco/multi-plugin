@@ -40,6 +40,7 @@
 #include "multiplugin/core/version.hpp"
 #include "multiplugin/core/global.hpp"
 #include "multiplugin/core/logger.hpp"
+#include "ae_helpers.h"
 
 // Backend-specific parameter implementation (must be after AE SDK headers)
 #include "multiplugin/params/ae_param_impl.hpp"
@@ -370,8 +371,10 @@ static PF_Err Render(PF_InData* in_data, PF_OutData* out_data,
         // Create render context
         mp::AERenderContext context(in_data, out_data, input, output);
 
-        // Call plugin render
+        // Call plugin render (parameter fetching happens inside onRender)
         g_plugin->onRender(context);
+    } else {
+        LOG_ERR << "Failed to copy input to output in Render";
     }
 
     return err;
@@ -441,12 +444,11 @@ static PF_Err SmartRender(PF_InData* in_data, PF_OutData* out_data,
                                         reinterpret_cast<PF_LayerDef*>(output_world));
             g_plugin->onRender(context);
         }
+    } else {
+        LOG_ERR << "Failed to checkout input or output layer in SmartRender";
     }
 
-    err2 = extra->cb->checkin_layer_pixels(in_data->effect_ref, INPUT_LAYER);
-    if (!err && err2) {
-        err = err2;
-    }
+    ERR2(extra->cb->checkin_layer_pixels(in_data->effect_ref, INPUT_LAYER));
 
     return err;
 }
@@ -561,13 +563,16 @@ PF_Err EffectMain(PF_Cmd cmd, PF_InData* in_data, PF_OutData* out_data,
                 // Ignore other commands
                 break;
         }
-    }
-    catch (PF_Err& thrown_err) {
-        LOG_ERR << "PF_Err exception caught: " << thrown_err;
+        if (err)
+            LOG_ERR << CMD_NAMES[cmd] << ". Code: " << GetErr(err);
+    } catch (PF_Err& thrown_err) {
+        LOG_ERR << "Try Catch Exception code at event " << CMD_NAMES[cmd] << " is " << GetErr(thrown_err);
         err = thrown_err;
-    }
-    catch (...) {
-        LOG_ERR << "Unknown exception caught in EffectMain";
+    } catch (const std::exception& e) {
+        LOG_ERR << "Try Catch Exception at event " << CMD_NAMES[cmd] << ". Error is " << e.what();
+        err = PF_Err_INTERNAL_STRUCT_DAMAGED;
+    } catch (...) {
+        LOG_ERR << "Try Catch Unknown Exception at event " << CMD_NAMES[cmd];
         err = PF_Err_INTERNAL_STRUCT_DAMAGED;
     }
 

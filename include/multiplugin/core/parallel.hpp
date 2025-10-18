@@ -13,6 +13,9 @@
 #include <thread>
 #endif
 
+
+#include "multiplugin/core/logger.hpp"
+
 namespace mp {
 
 /**
@@ -41,7 +44,7 @@ public:
      * @param dstPitch Bytes per row in destination
      * @param width Image width in pixels
      * @param height Image height in pixels
-     * @return false on success, true on error
+     * @return false on error, true on success
      */
     static bool iterate(
         PixelFunc pix_fn,
@@ -51,17 +54,17 @@ public:
         int width, int height)
     {
         if (!srcPtr || !dstPtr || !pix_fn || width <= 0 || height <= 0) {
-            std::cerr << "ParallelProcessor: Invalid parameters" << std::endl;
-            return true;
+            LOG_ERR << "ParallelProcessor: Invalid parameters";
+            return false;
         }
 
         if (srcPitch < width * sizeof(InPixel) || dstPitch < width * sizeof(OutPixel)) {
-            std::cerr << "ParallelProcessor: Invalid pitch" << std::endl;
-            std::cerr << "Source Pitch [" << srcPitch << "] < width [" << width
-                      << "] * sizeof(InPixel) [" << sizeof(InPixel) << "]" << std::endl;
-            std::cerr << "Destination Pitch [" << dstPitch << "] < width [" << width
-                      << "] * sizeof(OutPixel) [" << sizeof(OutPixel) << "]" << std::endl;
-            return true;
+            LOG_ERR << "ParallelProcessor: Invalid pitch";
+            LOG_ERR << "Source Pitch [" << srcPitch << "] < width [" << width
+                      << "] * sizeof(InPixel) [" << sizeof(InPixel) << "]";
+            LOG_ERR << "Destination Pitch [" << dstPitch << "] < width [" << width
+                      << "] * sizeof(OutPixel) [" << sizeof(OutPixel) << "]";
+            return false;
         }
 
         const char* baseSrc = static_cast<const char*>(srcPtr);
@@ -115,7 +118,7 @@ public:
         }
         #endif
 
-        return false;
+        return true;
     }
 
     /**
@@ -123,7 +126,7 @@ public:
      *
      * @tparam Func Lambda or callable type
      * @param func Function object called as func(x, y, inPixel, outPixel)
-     * @return false on success, true on error
+     * @return true on success, false on error
      */
     template<typename Func>
     static bool iterateLambda(

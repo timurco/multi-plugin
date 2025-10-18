@@ -160,6 +160,19 @@ enum class PixelFormat {
     RGBA_32F  // OFX eBitDepthFloat
 };
 
+constexpr const char* getPixelFormatString(PixelFormat format) {
+    switch (format) {
+        case PixelFormat::ARGB_8:   return "ARGB_8";
+        case PixelFormat::ARGB_16:  return "ARGB_16";
+        case PixelFormat::ARGB_32F: return "ARGB_32F";
+        case PixelFormat::RGBA_8:   return "RGBA_8";
+        case PixelFormat::RGBA_16:  return "RGBA_16";
+        case PixelFormat::RGBA_16F: return "RGBA_16F";
+        case PixelFormat::RGBA_32F: return "RGBA_32F";
+        default: return "Unknown";
+    }
+}
+
 /**
  * @brief Get pixel size in bytes for a given format
  */

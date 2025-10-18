@@ -6,6 +6,7 @@
  */
 
 #include <multiplugin/multiplugin.hpp>
+#include <multiplugin/core/logger.hpp>
 
 // Parameter disk IDs for serialization
 enum {
@@ -83,6 +84,11 @@ public:
      */
     void onGlobalSetup() override {
         global_.initialized = true;
+
+        mp::logger::set_plugin_version(mp::getPluginVersionString());
+        mp::logger::set_min_level(mp::logger::lvl::trace);
+        mp::logger::set_folder("TiM");
+        mp::logger::set_log_base(getInfo().name);
     }
 
     /**
@@ -106,8 +112,10 @@ public:
         // Fetch parameter values from host
         InvertParams params;
         ctx.fetchParams(kParams, params);
-
-        float mix_factor = params.mix / 100.0f;
+        
+        LOG_TRACE << "Frame: " << ctx.getInput().getWidth() << "x" << ctx.getInput().getHeight()
+                  << " [" << ctx.getFrame() << "(" << ctx.getTime() << " s.)]"
+                  << ", format: " << mp::getPixelFormatString(ctx.getInput().getFormat());
 
         // Use processAuto to automatically dispatch to correct pixel type
         ctx.processAuto([&](int x, int y, auto* in, auto* out) {
@@ -118,7 +126,7 @@ public:
             if (brightness * 100.0f < params.threshold) {
                 // Below threshold - copy input to output
                 *out = *in;
-                return false;
+                return true; // success
             }
 
             // Invert channels based on flags
@@ -152,14 +160,14 @@ public:
             result_b *= params.color_tint[2];
 
             // Mix with original
-            out->r = static_cast<decltype(out->r)>(mp::lerp(static_cast<float>(in->r), result_r, mix_factor));
-            out->g = static_cast<decltype(out->g)>(mp::lerp(static_cast<float>(in->g), result_g, mix_factor));
-            out->b = static_cast<decltype(out->b)>(mp::lerp(static_cast<float>(in->b), result_b, mix_factor));
+            out->r = static_cast<decltype(out->r)>(mp::lerp(static_cast<float>(in->r), result_r, params.mix));
+            out->g = static_cast<decltype(out->g)>(mp::lerp(static_cast<float>(in->g), result_g, params.mix));
+            out->b = static_cast<decltype(out->b)>(mp::lerp(static_cast<float>(in->b), result_b, params.mix));
 
             // Preserve alpha (with tint alpha applied)
             out->a = static_cast<decltype(out->a)>(in->a * params.color_tint[3]);
 
-            return false; // success
+            return true; // success
         });
     }
 };

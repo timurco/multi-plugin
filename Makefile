@@ -10,11 +10,12 @@ CMAKE ?= cmake
 
 CACHE_FILE := $(BUILD_DIR)/CMakeCache.txt
 
-.PHONY: help configure build install clean distclean debug release relwithdebinfo
+.PHONY: help configure build build-fast install clean distclean debug release relwithdebinfo
 
 help:
 	@echo "MultiPlugin shortcuts"
-	@echo "  make build              - configure (if needed) and build ($(CONFIG))"
+	@echo "  make build              - reconfigure and build with build number increment ($(CONFIG))"
+	@echo "  make build-fast         - build without reconfigure (no build number increment)"
 	@echo "  make install            - build then install to host plug-in folders"
 	@echo "  make debug              - build with CONFIG=Debug"
 	@echo "  make release            - build with CONFIG=Release"
@@ -41,10 +42,18 @@ $(CACHE_FILE):
 		-DAE_SDK_PATH="$(AE_SDK_PATH)" \
 		-DOFX_PATH="$(OFX_PATH)"
 
-build: configure
+build:
+	@# Always reconfigure to increment build number
+	$(CMAKE) -S . -B $(BUILD_DIR) \
+		-DCMAKE_BUILD_TYPE=$(CONFIG) \
+		-DAE_SDK_PATH="$(AE_SDK_PATH)" \
+		-DOFX_PATH="$(OFX_PATH)"
 	$(CMAKE) --build $(BUILD_DIR) --config $(CONFIG) -- -j$(JOBS)
 
-install: build
+build-fast: configure
+	$(CMAKE) --build $(BUILD_DIR) --config $(CONFIG) -- -j$(JOBS)
+
+install: build-fast
 	$(CMAKE) --install $(BUILD_DIR) --config $(CONFIG)
 
 clean:

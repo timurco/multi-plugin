@@ -162,8 +162,22 @@ public:
         return static_cast<void*>(effect_);
     }
 
-    const OfxParameterSuiteV1* getParamSuite() const {
-        return gParamSuite;
+    /**
+     * @brief Get parameter set handle for fetching parameter values
+     */
+    void* getOfxParamSetHandle() const override {
+        OfxParamSetHandle paramSet = nullptr;
+        if (gEffectSuite) {
+            gEffectSuite->getParamSet(effect_, &paramSet);
+        }
+        return static_cast<void*>(paramSet);
+    }
+
+    /**
+     * @brief Get parameter suite for fetching parameter values
+     */
+    const void* getOfxParamSuite() const override {
+        return static_cast<const void*>(gParamSuite);
     }
 };
 
@@ -182,7 +196,7 @@ static OfxStatus renderAction(OfxImageEffectHandle effect,
         // Create render context
         mp::OFXRenderContext context(effect, inArgs);
 
-        // Call plugin render
+        // Call plugin render (parameter fetching happens inside onRender)
         g_plugin->onRender(context);
 
         return kOfxStatOK;

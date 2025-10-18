@@ -27,6 +27,7 @@ cmake_install.cmake
 *.cmake
 .cmake/api/
 .cache/
+compile_commands.json
 
 # Generated resources
 **/generated/

@@ -19,6 +19,24 @@ const Version& getPluginVersion() {
     return kPluginVersion;
 }
 
+const char* getPluginVersionString() {
+    static char versionStr[64];
+    static bool initialized = false;
+
+    if (!initialized) {
+        // Format: "major.minor.patch build buildNumber"
+        // Example: "0.1.2 build 45"
+        snprintf(versionStr, sizeof(versionStr), "%d.%d.%d build %d",
+                kPluginVersion.major,
+                kPluginVersion.minor,
+                kPluginVersion.patch,
+                kPluginVersion.build);
+        initialized = true;
+    }
+
+    return versionStr;
+}
+
 // AE version function - replicates PF_VERSION macro logic
 uint32_t getAEVersion() {
     // Bit layout for AE version:
@@ -52,23 +70,6 @@ uint32_t getAEVersion() {
            ((kPluginVersion.patch & PF_Vers_BUGFIX_BITS) << PF_Vers_BUGFIX_SHIFT) |
            ((kPluginVersion.stage & PF_Vers_STAGE_BITS) << PF_Vers_STAGE_SHIFT) |
            ((kPluginVersion.build & PF_Vers_BUILD_BITS) << PF_Vers_BUILD_SHIFT);
-}
-
-// OFX version string function
-const char* getOFXVersionString() {
-    // Static buffer for version string
-    static char versionStr[32];
-    static bool initialized = false;
-
-    if (!initialized) {
-        snprintf(versionStr, sizeof(versionStr), "%d.%d.%d",
-                kPluginVersion.major,
-                kPluginVersion.minor,
-                kPluginVersion.patch);
-        initialized = true;
-    }
-
-    return versionStr;
 }
 
 } // namespace mp

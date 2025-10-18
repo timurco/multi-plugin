@@ -16,6 +16,12 @@ struct Version {
 };
 
 /**
+ * @brief Get version string for plugin
+ * @return Version as "major.minor.patch build number" string
+ */
+const char* getPluginVersionString();
+
+/**
  * @brief Get current plugin version
  * @note This function is defined in generated version.cpp
  *       Only that file needs recompilation when version changes
@@ -27,11 +33,5 @@ const Version& getPluginVersion();
  * @return Version encoded as PF_VERSION macro result
  */
 uint32_t getAEVersion();
-
-/**
- * @brief Get version string for OFX
- * @return Version as "major.minor.patch" string
- */
-const char* getOFXVersionString();
 
 } // namespace mp

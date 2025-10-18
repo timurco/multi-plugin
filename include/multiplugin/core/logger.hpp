@@ -50,9 +50,10 @@ constexpr lvl kDefaultLogLevel = lvl::trace;   // Debug: everything
 
 namespace detail {
     struct Settings {
-        std::string folder = "TiM";                   // Folder name in AppData/Library
-        std::string base   = "MultiPlugin";           // Log file base name
-        lvl         min_level = kDefaultLogLevel;     // Minimum level to write
+        std::string folder    = "TiM";             // Folder name in AppData/Library
+        std::string base      = "MultiPlugin";     // Log file base name
+        std::string version   = "";                // Plugin version
+        lvl         min_level = kDefaultLogLevel;  // Minimum level to write
     };
 
     inline Settings &settings() {
@@ -167,13 +168,17 @@ namespace detail {
             }
         }
 
-#ifndef NDEBUG
+#ifdef _DEBUG
         // In debug builds, also output to stderr/debugger
         static std::mutex debug_mutex;
         std::lock_guard<std::mutex> lk(debug_mutex);
 
         std::ostringstream debug_stream;
-        debug_stream << "[" << settings().base << "] "
+        debug_stream << "[" << settings().base;
+        if (!settings().version.empty()) {
+            debug_stream << " v" << settings().version;
+        }
+        debug_stream << "] "
                      << "[" << level_tag(level) << "] [thread "
                      << std::this_thread::get_id() << "] " << message << '\n';
         const std::string debug_msg = debug_stream.str();
@@ -204,6 +209,12 @@ inline void set_log_base(const std::string &name) {
 inline void set_min_level(lvl level) {
     std::lock_guard<std::mutex> lk(detail::settings_mutex());
     detail::settings().min_level = level;
+}
+
+/// Set plugin version
+inline void set_plugin_version(const std::string &version) {
+    std::lock_guard<std::mutex> lk(detail::settings_mutex());
+    detail::settings().version = version;
 }
 
 /// Get logs directory path

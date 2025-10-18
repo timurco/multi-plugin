@@ -5,6 +5,17 @@ project(MultiPlugin VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Generate compile_commands.json for IDE integration
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Add build type macros for runtime detection
+# _DEBUG: defined for Debug and RelWithDebInfo builds
+# NDEBUG: already defined by CMake for Release and RelWithDebInfo
+add_compile_definitions(
+    $<$<CONFIG:Debug>:_DEBUG>
+    $<$<CONFIG:RelWithDebInfo>:_DEBUG>
+)
+
 # Options
 option(BUILD_AE_PLUGINS "Build After Effects plugins" ON)
 option(BUILD_OFX_PLUGINS "Build OpenFX plugins" ON)
@@ -20,6 +31,8 @@ elseif(WIN32)
 else()
     set(MP_PLATFORM_LINUX ON)
 endif()
+
+message(STATUS "MP_PLATFORM_MAC: ${MP_PLATFORM_MAC}")
 
 # Version management
 set(MP_VERSION_MAJOR 0)

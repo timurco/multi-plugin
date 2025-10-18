@@ -23,8 +23,9 @@ namespace mp {
     struct PluginInfo;
     #ifdef BUILD_FOR_AE
     class AEParamBuilder;
-    #elif BUILD_FOR_OFX  
+    #elif BUILD_FOR_OFX
     class OFXParamBuilder;
+    class OFXRenderContext;
     #endif
 }
 
@@ -233,6 +234,12 @@ public:
     // Parameter fetching - implemented by backends
     virtual void* getBackendHandle() const = 0;
 
+#ifdef BUILD_FOR_OFX
+    // OFX-specific methods for parameter access (implemented in ofx_backend.cpp)
+    virtual void* getOfxParamSetHandle() const { return nullptr; }
+    virtual const void* getOfxParamSuite() const { return nullptr; }
+#endif
+
     /**
      * @brief Fetch parameter values from host
      * @tparam Bag Parameter struct type
@@ -247,9 +254,14 @@ public:
         if (!handle) return 1;
 
 #ifdef BUILD_FOR_OFX
-        // TODO: Implement OFX parameter fetching with C API
-        // Need to get OfxParamSetHandle and OfxParameterSuiteV1 from backend
-        return 1;  // Not implemented yet
+        // Get OFX-specific handles via virtual methods
+        auto* paramSetHandle = static_cast<OfxParamSetHandle>(getOfxParamSetHandle());
+        auto* paramSuite = static_cast<const OfxParameterSuiteV1*>(getOfxParamSuite());
+        if (!paramSetHandle || !paramSuite) return 1;
+
+        // Create source and fetch parameters
+        OfxSource source(paramSetHandle, paramSuite, getTime());
+        return paramSet.fetch(source, bag);
 #elif defined(BUILD_FOR_AE)
         auto* pair = static_cast<std::pair<PF_InData*, PF_OutData*>*>(handle);
         AESource source(pair->first, pair->second);
