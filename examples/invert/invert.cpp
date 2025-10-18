@@ -76,16 +76,7 @@ public:
     void onRender(mp::RenderContext& ctx) override {
         // Fetch parameter values from host
         InvertParams params;
-        // NOTE: Backend integration pending - fetchParams will work once backends
-        // call paramSet.build() in describeInContext and provide proper handle
-        // ctx.fetchParams(kParams, params);
-
-        // For now, use defaults (TODO: Remove when backend integration is complete)
-        params.mix = 100.0f;
-        params.invert_red = true;
-        params.invert_green = true;
-        params.invert_blue = true;
-        params.blend_mode = 0;
+        ctx.fetchParams(kParams, params);
 
         float mix_factor = params.mix / 100.0f;
 

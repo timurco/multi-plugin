@@ -265,6 +265,8 @@ static OfxStatus describeAction(OfxImageEffectHandle effect)
 static OfxStatus describeInContextAction(OfxImageEffectHandle effect,
                                         OfxPropertySetHandle inArgs)
 {
+    LOG_INFO << "describeInContextAction called";
+
     // Define clips
     OfxPropertySetHandle props;
 
@@ -282,8 +284,30 @@ static OfxStatus describeInContextAction(OfxImageEffectHandle effect,
     gPropertySuite->propSetString(props, kOfxImageEffectPropSupportedComponents, 1,
                                   kOfxImageComponentAlpha);
 
-    // Define parameters (will add UParams integration later)
-    // For now, no parameters
+    // Define parameters
+    if (g_plugin) {
+        LOG_INFO << "Building parameters for plugin";
+
+        // Get ParamSet handle
+        OfxParamSetHandle paramSet;
+        OfxStatus status = gEffectSuite->getParamSet(effect, &paramSet);
+        if (status != kOfxStatOK) {
+            LOG_ERR << "Failed to get param set: " << status;
+            return status;
+        }
+
+        LOG_INFO << "Got param set, creating builder";
+
+        // Create builder and build parameters
+        mp::OFXParamBuilder builder(paramSet, gParamSuite, gPropertySuite);
+
+        LOG_INFO << "Calling plugin->buildParams()";
+        g_plugin->buildParams(builder);
+
+        LOG_INFO << "Parameters built successfully";
+    } else {
+        LOG_WARN << "No plugin instance in describeInContext";
+    }
 
     return kOfxStatOK;
 }
